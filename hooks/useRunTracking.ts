@@ -5,6 +5,7 @@ import { runApi } from '../api/run';
 import { calculateDistance, calculatePace, calculateSpeed, estimateCaloriesBurned } from '../utils/run';
 import { profileApi } from '../api/profile';
 import { LOCATION_TRACKING_TASK, clearBackgroundBatch } from '../tasks/locationTask';
+import { syncPendingPoints, clearSessionPoints } from '../utils/pointQueue';
 import {
   requestNotificationPermission,
   setupRunNotificationChannel,
@@ -47,6 +48,7 @@ export const useRunTracking = () => {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pauseNotifIdRef = useRef<string | null>(null);
+  const syncTickCounter = useRef(0); // sync every N ticks
 
   const requestPermissions = async () => {
     const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
@@ -164,6 +166,13 @@ export const useRunTracking = () => {
           currentSpeed: newSpeed,
           caloriesBurned: newCalories,
         });
+
+        // Periodic queue sync every ~15 seconds
+        syncTickCounter.current += 1;
+        if (syncTickCounter.current >= 15) {
+          syncTickCounter.current = 0;
+          syncPendingPoints().catch(() => {});
+        }
       }, 1000);
     } else {
       if (timerRef.current) {
@@ -241,6 +250,9 @@ export const useRunTracking = () => {
       : 0;
     const finalDuration = accumulatedSeconds + segmentElapsed;
 
+    // Final sync: flush any remaining queued points
+    await syncPendingPoints().catch(() => {});
+
     await runApi.finishSession(currentSid, {
       distanceMeters: d,
       durationSeconds: finalDuration,
@@ -262,6 +274,9 @@ export const useRunTracking = () => {
       caloriesBurned: estimateCaloriesBurned(d, w),
     }).catch(() => {});
 
+    // Clean up queue for this session
+    await clearSessionPoints(currentSid).catch(() => {});
+
     // Reset immediately so dashboard is clean
     reset();
   };
@@ -269,9 +284,14 @@ export const useRunTracking = () => {
   const cancelRun = async () => {
     clearBackgroundBatch();
     await stopTracking();
+    const currentSid = useRunTrackerStore.getState().sessionId;
     try {
       await runApi.cancelSession();
     } catch (e) {}
+    // Discard all queued points for this cancelled session
+    if (currentSid) {
+      await clearSessionPoints(currentSid).catch(() => {});
+    }
     reset();
   };
 
