@@ -3,6 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
+import '../tasks/locationTask';
 
 export {
   ErrorBoundary,

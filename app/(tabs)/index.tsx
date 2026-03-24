@@ -130,6 +130,19 @@ export default function DashboardScreen() {
             color="#9C27B0"
           />
 
+          <TouchableOpacity 
+            style={styles.startRunCard} 
+            onPress={() => router.push('/run/live')}
+          >
+            <View style={styles.startRunInfo}>
+              <Text style={styles.startRunTitle}>Bắt đầu chạy bộ</Text>
+              <Text style={styles.startRunSubtitle}>Sẵn sàng cho mục tiêu mới hôm nay?</Text>
+            </View>
+            <View style={styles.startRunIcon}>
+              <Ionicons name="play" size={24} color="#FFF" />
+            </View>
+          </TouchableOpacity>
+
           {data.dailyHistory && <DashboardCharts data={data.dailyHistory} />}
 
           <Text style={[styles.sectionTitle, { marginTop: 24 }]}>7 ngày gần nhất</Text>
@@ -226,5 +239,40 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     marginTop: 50,
+  },
+  startRunCard: {
+    backgroundColor: '#FF6F61',
+    borderRadius: 20,
+    padding: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 16,
+    elevation: 8,
+    shadowColor: '#FF6F61',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+  },
+  startRunInfo: {
+    flex: 1,
+  },
+  startRunTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginBottom: 4,
+  },
+  startRunSubtitle: {
+    fontSize: 14,
+    color: '#FFE0DE',
+  },
+  startRunIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

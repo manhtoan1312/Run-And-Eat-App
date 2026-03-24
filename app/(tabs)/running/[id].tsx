@@ -1,122 +1,49 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  ActivityIndicator, 
   TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Modal,
+  Dimensions
 } from 'react-native';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { runningApi } from '../../../api/running';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { runApi } from '../../../api/run';
+import { formatDuration } from '../../../utils/run';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import RunMap from '../../../components/run/RunMap';
 
-const runningSchema = z.object({
-  date: z.string().min(1, 'Vui lòng chọn ngày'),
-  distanceKm: z.coerce.number().min(0.01, 'Quãng đường phải lớn hơn 0'),
-  durationMinutes: z.coerce.number().int().min(1, 'Thời gian phải lớn hơn 0'),
-  caloriesBurned: z.coerce.number().min(0, 'Calo không được âm'),
-  note: z.string().default(''),
-});
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-type FormData = {
-  date: string;
-  distanceKm: number;
-  durationMinutes: number;
-  caloriesBurned: number;
-  note: string;
-};
-
-export default function EditRunningLogScreen() {
-  const router = useRouter();
+export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams();
+  const router = useRouter();
+  const [session, setSession] = useState<any>(null);
+  const [points, setPoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(runningSchema),
-  });
 
   useEffect(() => {
-    fetchLog();
+    if (id) {
+      fetchDetail();
+    }
   }, [id]);
 
-  const fetchLog = async () => {
-    console.log('Fetching log details for ID:', id);
+  const fetchDetail = async () => {
     try {
-      const log = await runningApi.getById(id as string);
-      console.log('Fetched log:', log);
-      reset({
-        date: new Date(log.date).toISOString().split('T')[0],
-        distanceKm: log.distanceKm,
-        durationMinutes: log.durationMinutes,
-        caloriesBurned: log.caloriesBurned,
-        note: log.note || '',
-      });
-    } catch (error) {
-      console.error('Fetch log error:', error);
-      Alert.alert('Lỗi', 'Không thể tải thông tin buổi chạy');
-      router.back();
+      setLoading(true);
+      const [sessionData, pointsData] = await Promise.all([
+        runApi.getSession(id as string),
+        runApi.getSessionPoints(id as string)
+      ]);
+      setSession(sessionData);
+      setPoints(pointsData);
+    } catch (err) {
+      console.error('Failed to fetch session detail:', err);
     } finally {
       setLoading(false);
     }
-  };
-
-  const onSubmit = async (data: FormData) => {
-    console.log('Updating log:', id, data);
-    setSaving(true);
-    try {
-      await runningApi.update(id as string, data);
-      Alert.alert('Thành công', 'Đã cập nhật buổi chạy bộ');
-      router.back();
-    } catch (error: any) {
-      console.error('Update running log error:', error);
-      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể cập nhật bản ghi');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = () => {
-    Alert.alert(
-      'Xóa buổi chạy',
-      'Bạn có chắc chắn muốn xóa buổi chạy này không?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await runningApi.delete(id as string);
-              Alert.alert('Thành công', 'Đã xóa buổi chạy');
-              router.back();
-            } catch (error) {
-              console.error('Delete log error:', error);
-              Alert.alert('Lỗi', 'Không thể xóa bản ghi');
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
-    );
   };
 
   if (loading) {
@@ -127,316 +54,215 @@ export default function EditRunningLogScreen() {
     );
   }
 
+  if (!session) {
+    return (
+      <View style={styles.center}>
+        <Text>Không tìm thấy dữ liệu buổi chạy</Text>
+      </View>
+    );
+  }
+
+  const date = new Date(session.startedAt);
+  const dateStr = date.toLocaleDateString('vi-VN', { 
+    weekday: 'long',
+    day: '2-digit', 
+    month: 'long', 
+    year: 'numeric' 
+  });
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+    <View style={styles.container}>
+      <View style={styles.mapContainer}>
+        <RunMap 
+          points={points} 
+          isLive={false} 
+        />
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => router.back()}
+        >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.title}>Chi tiết buổi chạy</Text>
-        <TouchableOpacity 
-          style={styles.deleteHeaderButton} 
-          onPress={handleDelete}
-          disabled={deleting}
-        >
-          {deleting ? (
-            <ActivityIndicator size="small" color="#EA4335" />
-          ) : (
-            <Ionicons name="trash-outline" size={24} color="#EA4335" />
-          )}
-        </TouchableOpacity>
       </View>
 
-      <View style={styles.formCard}>
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Ngày chạy</Text>
-          <Controller
-            control={control}
-            name="date"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <TouchableOpacity
-                  style={styles.input}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <Text style={{ color: value ? '#333' : '#999' }}>
-                    {value ? new Date(value).toLocaleDateString('vi-VN') : 'Chọn ngày'}
-                  </Text>
-                  <Ionicons name="calendar-outline" size={20} color="#777" />
-                </TouchableOpacity>
-
-                {showDatePicker && (
-                  Platform.OS === 'ios' ? (
-                    <Modal
-                      transparent={true}
-                      animationType="slide"
-                      visible={showDatePicker}
-                      onRequestClose={() => setShowDatePicker(false)}
-                    >
-                      <View style={styles.modalOverlay}>
-                        <View style={styles.modalContainer}>
-                          <View style={styles.modalHeader}>
-                            <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                              <Text style={styles.modalDoneText}>Xong</Text>
-                            </TouchableOpacity>
-                          </View>
-                          <DateTimePicker
-                            value={value ? new Date(value) : new Date()}
-                            mode="date"
-                            display="spinner"
-                            onChange={(event, selectedDate) => {
-                              if (selectedDate) {
-                                onChange(selectedDate.toISOString().split('T')[0]);
-                              }
-                            }}
-                          />
-                        </View>
-                      </View>
-                    </Modal>
-                  ) : (
-                    <DateTimePicker
-                      value={value ? new Date(value) : new Date()}
-                      mode="date"
-                      display="spinner"
-                      onChange={(event, selectedDate) => {
-                        setShowDatePicker(false);
-                        if (selectedDate && event.type === 'set') {
-                          onChange(selectedDate.toISOString().split('T')[0]);
-                        }
-                      }}
-                    />
-                  )
-                )}
-              </>
-            )}
-          />
-          {errors.date && <Text style={styles.error}>{errors.date.message}</Text>}
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+            <Text style={styles.dateText}>{dateStr}</Text>
+            <Text style={styles.noteText}>{session.note || 'Buổi chạy bộ buổi sáng'}</Text>
         </View>
 
-        <View style={styles.row}>
-          <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
-            <Text style={styles.label}>Quãng đường (km)</Text>
-            <Controller
-              control={control}
-              name="distanceKm"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  style={styles.input}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value?.toString()}
-                  keyboardType="numeric"
-                  placeholder="5.0"
-                />
-              )}
-            />
-            {errors.distanceKm && <Text style={styles.error}>{errors.distanceKm.message}</Text>}
+        <View style={styles.statsGrid}>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{(session.distanceMeters / 1000).toFixed(2)}</Text>
+            <Text style={styles.statLabel}>Kilometers</Text>
           </View>
-
-          <View style={[styles.formGroup, { flex: 1, marginLeft: 10 }]}>
-            <Text style={styles.label}>Thời gian (phút)</Text>
-            <Controller
-              control={control}
-              name="durationMinutes"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  style={styles.input}
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value?.toString()}
-                  keyboardType="numeric"
-                  placeholder="30"
-                />
-              )}
-            />
-            {errors.durationMinutes && <Text style={styles.error}>{errors.durationMinutes.message}</Text>}
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{formatDuration(session.durationSeconds)}</Text>
+            <Text style={styles.statLabel}>Duration</Text>
           </View>
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Calo tiêu thụ</Text>
-          <Controller
-            control={control}
-            name="caloriesBurned"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={styles.input}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value?.toString()}
-                keyboardType="numeric"
-                placeholder="400"
-              />
-            )}
-          />
-          {errors.caloriesBurned && <Text style={styles.error}>{errors.caloriesBurned.message}</Text>}
+        <View style={styles.statsGrid}>
+          <View style={styles.statBoxSmall}>
+             <Ionicons name="speedometer-outline" size={20} color="#FF6F61" />
+             <View>
+                <Text style={styles.smallStatValue}>{session.avgPace || '-:--'}</Text>
+                <Text style={styles.smallStatLabel}>Avg Pace</Text>
+             </View>
+          </View>
+          <View style={styles.statBoxSmall}>
+             <Ionicons name="flame-outline" size={20} color="#FF6F61" />
+             <View>
+                <Text style={styles.smallStatValue}>{Math.round(session.caloriesBurned || 0)}</Text>
+                <Text style={styles.smallStatLabel}>Calories</Text>
+             </View>
+          </View>
+          <View style={styles.statBoxSmall}>
+             <Ionicons name="trending-up-outline" size={20} color="#FF6F61" />
+             <View>
+                <Text style={styles.smallStatValue}>{session.avgSpeedKmh?.toFixed(1) || '0.0'}</Text>
+                <Text style={styles.smallStatLabel}>Speed km/h</Text>
+             </View>
+          </View>
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Ghi chú</Text>
-          <Controller
-            control={control}
-            name="note"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                multiline
-                numberOfLines={4}
-                placeholder="Ghi chú thêm về buổi chạy..."
-              />
-            )}
-          />
+        <View style={styles.infoCard}>
+            <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Bắt đầu</Text>
+                <Text style={styles.infoValue}>{new Date(session.startedAt).toLocaleTimeString('vi-VN')}</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Kết thúc</Text>
+                <Text style={styles.infoValue}>{session.endedAt ? new Date(session.endedAt).toLocaleTimeString('vi-VN') : '--:--'}</Text>
+            </View>
         </View>
-
-        <TouchableOpacity
-          style={[styles.saveButton, (saving || deleting) && styles.buttonDisabled]}
-          onPress={handleSubmit(onSubmit)}
-          disabled={saving || deleting}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>Cập nhật bản ghi</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FE',
-  },
-  content: {
-    padding: 20,
-    paddingTop: 60,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  backButton: {
-    padding: 8,
     backgroundColor: '#FFF',
-    borderRadius: 12,
-    marginRight: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  deleteHeaderButton: {
-    padding: 8,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    marginLeft: 'auto',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  formCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 24,
-    padding: 24,
+  mapContainer: {
+    height: SCREEN_HEIGHT * 0.45,
+    width: '100%',
+    position: 'relative',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  formGroup: {
-    marginBottom: 20,
-  },
-  row: {
-    flexDirection: 'row',
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  input: {
-    backgroundColor: '#F7F9FC',
-    borderRadius: 16,
-    padding: 16,
-    fontSize: 16,
-    color: '#333',
-    borderWidth: 1,
-    borderColor: '#E1E5EB',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  saveButton: {
-    backgroundColor: '#FF6F61',
-    borderRadius: 16,
-    padding: 18,
-    alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#FF6F61',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  error: {
-    color: '#EA4335',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  modalOverlay: {
+  content: {
     flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    marginTop: -30,
+    paddingTop: 20,
   },
-  modalContainer: {
-    backgroundColor: 'white',
+  scrollContent: {
     paddingBottom: 40,
   },
-  modalHeader: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    alignItems: 'flex-end',
+  header: {
+    paddingHorizontal: 25,
+    marginBottom: 25,
   },
-  modalDoneText: {
-    color: '#FF6F61',
-    fontWeight: 'bold',
+  dateText: {
     fontSize: 16,
+    color: '#666',
+    marginBottom: 5,
   },
+  noteText: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#333',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 15,
+    marginBottom: 15,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: '#F8F9FE',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#333',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 5,
+  },
+  statBoxSmall: {
+    flex: 1,
+    backgroundColor: '#F8F9FE',
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  smallStatValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+  },
+  smallStatLabel: {
+    fontSize: 11,
+    color: '#999',
+  },
+  infoCard: {
+    marginHorizontal: 20,
+    marginTop: 10,
+    backgroundColor: '#F8F9FE',
+    borderRadius: 20,
+    padding: 20,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#EEE',
+    marginVertical: 12,
+  }
 });

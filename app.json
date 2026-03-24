@@ -13,7 +13,16 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Cho phép ứng dụng truy cập vị trí của bạn để theo dõi quãng đường chạy bộ.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Cho phép ứng dụng truy cập vị trí của bạn ngay cả khi chạy dưới nền để ghi lại hành trình chạy bộ đầy đủ.",
+        "NSLocationAlwaysUsageDescription": "Cho phép ứng dụng truy cập vị trí của bạn ngay cả khi chạy dưới nền để ghi lại hành trình chạy bộ đầy đủ.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,6 +31,14 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "WAKE_LOCK"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -32,6 +49,8 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      "expo-location",
+      "expo-task-manager",
       "@react-native-community/datetimepicker"
     ],
     "experiments": {

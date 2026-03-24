@@ -3,74 +3,87 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
-  RefreshControl,
+  ScrollView,
   ActivityIndicator,
-  Alert,
+  Image,
+  Dimensions,
+  SafeAreaView,
+  RefreshControl,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { runningApi } from '../../../api/running';
-import { RunningLog } from '../../../types/running';
 import { Ionicons } from '@expo/vector-icons';
+import { useRunTrackerStore } from '../../../store/useRunTrackerStore';
+import { runApi } from '../../../api/run';
+import { formatDuration } from '../../../utils/run';
 
-export default function RunningListScreen() {
+const { width } = Dimensions.get('window');
+
+export default function RunningDashboardScreen() {
   const router = useRouter();
-  const [logs, setLogs] = useState<RunningLog[]>([]);
+  const { 
+    sessionId, status, setSession, setStatus, updateMetrics, setHasInitialized,
+    autoPauseEnabled, setAutoPause 
+  } = useRunTrackerStore();
   const [loading, setLoading] = useState(true);
+  const [userStats, setUserStats] = useState({
+    totalDistanceMeters: 0,
+    totalDurationSeconds: 0,
+    totalCaloriesBurned: 0,
+    totalRuns: 0,
+  });
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchLogs = useCallback(async (showLoading = true) => {
-    if (showLoading) setLoading(true);
-    setError(null);
+  // Check current session on focus/mount
+  const checkData = useCallback(async () => {
     try {
-      const data = await runningApi.getAll();
-      setLogs(data);
-    } catch (err: any) {
-      console.error('Fetch running logs error:', err);
-      setError('Không thể tải danh sách. Vui lòng thử lại.');
+      const [activeSession, stats] = await Promise.all([
+        runApi.getCurrentSession(),
+        runApi.getStats()
+      ]);
+      
+      if (activeSession) {
+        setSession(activeSession.id);
+        setStatus(activeSession.status);
+        updateMetrics(
+          activeSession.distanceMeters,
+          activeSession.durationSeconds,
+          activeSession.avgPace || '0:00',
+          activeSession.avgSpeedKmh || 0,
+          activeSession.caloriesBurned || 0
+        );
+        setHasInitialized(true);
+      } else {
+        setSession(null);
+        setStatus('IDLE');
+      }
+
+      if (stats) {
+        setUserStats(stats);
+      }
+    } catch (err) {
+      console.error('Failed to fetch running data:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [setSession, setStatus, updateMetrics, setHasInitialized]);
 
   useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+    checkData();
+  }, [checkData]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchLogs(false);
+    checkData();
   };
 
-  const renderItem = ({ item }: { item: RunningLog }) => (
-    <TouchableOpacity
-      style={styles.logCard}
-      onPress={() => router.push(`/(tabs)/running/${item.id}` as any)}
-    >
-      <View style={styles.logInfo}>
-        <View style={styles.dateBadge}>
-          <Text style={styles.dateDay}>{new Date(item.date).getDate()}</Text>
-          <Text style={styles.dateMonth}>T{new Date(item.date).getMonth() + 1}</Text>
-        </View>
-        <View style={styles.mainInfo}>
-          <Text style={styles.distanceText}>{item.distanceKm.toFixed(2)} km</Text>
-          <Text style={styles.durationText}>
-            <Ionicons name="time-outline" size={14} color="#777" /> {item.durationMinutes} phút
-          </Text>
-        </View>
-      </View>
-      <View style={styles.paceInfo}>
-        <Text style={styles.paceValue}>{item.pace.toFixed(2)}</Text>
-        <Text style={styles.paceUnit}>{item.paceUnit}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color="#CCC" />
-    </TouchableOpacity>
-  );
+  const onStartPress = () => {
+    router.push('/run/live');
+  };
 
-  if (loading && !refreshing) {
+  if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#FF6F61" />
@@ -78,163 +91,300 @@ export default function RunningListScreen() {
     );
   }
 
-  if (error && logs.length === 0) {
-    return (
-      <View style={styles.center}>
-        <Ionicons name="alert-circle-outline" size={60} color="#CCC" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => fetchLogs()}>
-          <Text style={styles.retryText}>Thử lại</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={logs}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+    <SafeAreaView style={styles.container}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF6F61" />
         }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="footsteps-outline" size={80} color="#EEE" />
-            <Text style={styles.emptyTitle}>Chưa có buổi chạy nào</Text>
-            <Text style={styles.emptySubtitle}>Bắt đầu hành trình của bạn ngay hôm nay!</Text>
-          </View>
-        }
-      />
-      
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => router.push('/(tabs)/running/create')}
       >
-        <Ionicons name="add" size={30} color="#FFF" />
-      </TouchableOpacity>
-    </View>
+        <View style={styles.header}>
+          <Text style={styles.welcomeText}>Sẵn sàng chưa?</Text>
+          <Text style={styles.titleText}>Chạy bộ ngay thôi!</Text>
+        </View>
+
+        <View style={styles.heroContainer}>
+          <Image 
+            source={{ uri: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&q=80&w=1000' }} 
+            style={styles.heroImage}
+          />
+          <View style={styles.heroOverlay}>
+             <Ionicons name="location" size={24} color="#fff" />
+             <Text style={styles.heroLocation}>TP. Hồ Chí Minh, Việt Nam</Text>
+          </View>
+        </View>
+
+        {status !== 'IDLE' && sessionId && (
+          <TouchableOpacity style={styles.activeSessionCard} onPress={onStartPress}>
+             <View style={styles.activeSessionStatus}>
+                <View style={[styles.statusDot, { backgroundColor: status === 'IN_PROGRESS' ? '#4CAF50' : '#FF9800' }]} />
+                <Text style={styles.statusLabel}>{status === 'IN_PROGRESS' ? 'Đang hoạt động' : 'Đang tạm dừng'}</Text>
+             </View>
+             <Text style={styles.activeSessionTitle}>Tiếp tục buổi chạy đang dang dở</Text>
+             <Ionicons name="arrow-forward-circle" size={40} color="#FF6F61" />
+          </TouchableOpacity>
+        )}
+
+        <View style={styles.sectionHeader}>
+           <Text style={styles.sectionTitle}>Thành tích cá nhân</Text>
+           <View style={styles.sectionActions}>
+             <TouchableOpacity style={styles.iconAction} onPress={() => router.push('/running/leaderboard')}>
+                <Ionicons name="trophy-outline" size={20} color="#FF6F61" />
+             </TouchableOpacity>
+             <TouchableOpacity onPress={() => router.push('/running/history')}>
+                <Text style={styles.seeAllText}>Xem lịch sử</Text>
+             </TouchableOpacity>
+           </View>
+        </View>
+
+        <View style={styles.statsPreview}>
+           <View style={styles.statBox}>
+              <Text style={styles.statValue}>{userStats.totalRuns}</Text>
+              <Text style={styles.statLabel}>Buổi chạy</Text>
+           </View>
+           <View style={styles.statBox}>
+              <Text style={styles.statValue}>{(userStats.totalDistanceMeters / 1000).toFixed(1)}</Text>
+              <Text style={styles.statLabel}>Km tổng</Text>
+           </View>
+           <View style={styles.statBox}>
+              <Text style={styles.statValue}>{Math.round(userStats.totalCaloriesBurned)}</Text>
+              <Text style={styles.statLabel}>Kcal</Text>
+           </View>
+        </View>
+
+        <View style={styles.settingsContainer}>
+           <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                 <Ionicons name="pause-circle-outline" size={24} color="#666" />
+                 <View style={styles.settingTexts}>
+                    <Text style={styles.settingTitle}>Tự động tạm dừng</Text>
+                    <Text style={styles.settingDesc}>Dừng đếm khi bạn đứng yên</Text>
+                 </View>
+              </View>
+              <Switch 
+                value={autoPauseEnabled} 
+                onValueChange={setAutoPause}
+                trackColor={{ false: '#EEE', true: '#FFD3D1' }}
+                thumbColor={autoPauseEnabled ? '#FF6F61' : '#AAA'}
+              />
+           </View>
+        </View>
+
+        <View style={styles.goContainer}>
+           <TouchableOpacity style={styles.goButton} onPress={onStartPress}>
+              <Text style={styles.goText}>GO!</Text>
+           </TouchableOpacity>
+        </View>
+
+        <Text style={styles.tipText}>Tip: Đừng quên mang theo nước và giày chạy phù hợp nhé!</Text>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FE',
+    backgroundColor: '#fff',
   },
-  listContent: {
-    padding: 20,
-    paddingBottom: 100,
+  scrollContent: {
+    padding: 24,
+    paddingBottom: 40,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+  header: {
+    marginBottom: 24,
   },
-  dateBadge: {
-    backgroundColor: '#F0F2F5',
-    borderRadius: 12,
-    padding: 10,
-    alignItems: 'center',
-    width: 55,
-  },
-  dateDay: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  dateMonth: {
-    fontSize: 12,
-    color: '#777',
+  welcomeText: {
+    fontSize: 16,
+    color: '#999',
     fontWeight: '600',
   },
-  mainInfo: {
-    marginLeft: 15,
-    flex: 1,
-  },
-  distanceText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  titleText: {
+    fontSize: 28,
+    fontWeight: '800',
     color: '#333',
-  },
-  durationText: {
-    fontSize: 14,
-    color: '#777',
     marginTop: 4,
   },
-  paceInfo: {
-    alignItems: 'flex-end',
-    marginRight: 10,
+  heroContainer: {
+    height: 200,
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginBottom: 24,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
   },
-  paceValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroOverlay: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  heroLocation: {
+    color: '#fff',
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  activeSessionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF2F1',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#FFD3D1',
+    marginBottom: 24,
+  },
+  activeSessionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'absolute',
+    top: -10,
+    right: 20,
+    backgroundColor: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#EEE',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  statusLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#666',
+  },
+  activeSessionTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
     color: '#FF6F61',
   },
-  paceUnit: {
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+  },
+  sectionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+  },
+  iconAction: {
+    padding: 4,
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#FF6F61',
+    fontWeight: '600',
+  },
+  statsPreview: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 40,
+  },
+  statBox: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#333',
+  },
+  statLabel: {
     fontSize: 12,
     color: '#999',
+    fontWeight: '600',
+    marginTop: 4,
   },
-  fab: {
-    position: 'absolute',
-    bottom: 30,
-    right: 30,
+  goContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  goButton: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: '#FF6F61',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#FF6F61',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
+    elevation: 15,
+    borderWidth: 8,
+    borderColor: 'rgba(255, 111, 97, 0.2)',
   },
-  emptyContainer: {
-    alignItems: 'center',
-    marginTop: 100,
+  goText: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#fff',
   },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#CCC',
-    marginTop: 20,
-  },
-  emptySubtitle: {
-    fontSize: 14,
+  tipText: {
+    textAlign: 'center',
+    fontSize: 13,
     color: '#AAA',
-    marginTop: 8,
+    fontStyle: 'italic',
   },
-  errorText: {
-    fontSize: 16,
-    color: '#777',
-    marginTop: 15,
-    marginBottom: 20,
-  },
-  retryButton: {
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    backgroundColor: '#FF6F61',
+  settingsContainer: {
+    backgroundColor: '#F8F9FE',
     borderRadius: 20,
+    padding: 16,
+    marginBottom: 30,
   },
-  retryText: {
-    color: '#FFF',
-    fontWeight: 'bold',
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  settingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  settingTexts: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#333',
+  },
+  settingDesc: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
   },
 });

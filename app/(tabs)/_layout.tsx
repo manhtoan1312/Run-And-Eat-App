@@ -14,14 +14,13 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
+        headerShown: false, // Default to false as most screens have custom headers
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Trang chủ',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{ ios: 'house', android: 'home', web: 'home' }}
@@ -29,26 +28,13 @@ export default function TabLayout() {
               size={28}
             />
           ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'Lịch sử',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{ ios: 'clock', android: 'history', web: 'history' }}
@@ -62,6 +48,7 @@ export default function TabLayout() {
         name="running/index"
         options={{
           title: 'Chạy bộ',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{ ios: 'figure.run', android: 'directions_run', web: 'directions_run' }}
@@ -75,6 +62,7 @@ export default function TabLayout() {
         name="meal/index"
         options={{
           title: 'Dinh dưỡng',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{ ios: 'fork.knife', android: 'restaurant', web: 'restaurant' }}
@@ -88,6 +76,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Hồ sơ',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{ ios: 'person', android: 'person', web: 'person' }}
@@ -97,40 +86,15 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="two"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="running/create"
-        options={{
-          href: null,
-          title: 'Thêm buổi chạy',
-        }}
-      />
-      <Tabs.Screen
-        name="running/[id]"
-        options={{
-          href: null,
-          title: 'Chi tiết buổi chạy',
-        }}
-      />
-      <Tabs.Screen
-        name="meal/create"
-        options={{
-          href: null,
-          title: 'Thêm bữa ăn',
-        }}
-      />
-      <Tabs.Screen
-        name="meal/[id]"
-        options={{
-          href: null,
-          title: 'Chi tiết bữa ăn',
-        }}
-      />
+
+      {/* Hidden Routes */}
+      <Tabs.Screen name="two" options={{ href: null }} />
+      <Tabs.Screen name="running/create" options={{ href: null }} />
+      <Tabs.Screen name="running/[id]" options={{ href: null }} />
+      <Tabs.Screen name="running/history" options={{ href: null }} />
+      <Tabs.Screen name="running/leaderboard" options={{ href: null }} />
+      <Tabs.Screen name="meal/create" options={{ href: null }} />
+      <Tabs.Screen name="meal/[id]" options={{ href: null }} />
     </Tabs>
   );
 }
