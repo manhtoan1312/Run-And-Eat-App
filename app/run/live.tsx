@@ -21,7 +21,7 @@ export default function LiveTrackingScreen() {
 
   // Notify user when GPS is weak while running
   useEffect(() => {
-    if (status === 'IN_PROGRESS' && currentAccuracy !== null && currentAccuracy > 30) {
+    if (status === 'IN_PROGRESS' && currentAccuracy !== null && currentAccuracy > 45) {
       notifyWeakGpsDebounced(120_000); // max 1 notification per 2 minutes
     }
   }, [currentAccuracy, status]);
@@ -35,7 +35,7 @@ export default function LiveTrackingScreen() {
     );
   }
 
-  const isLowGps = currentAccuracy === null || currentAccuracy > 30;
+  const isLowGps = currentAccuracy === null || currentAccuracy > 45;
 
   const onToggleLock = () => {
     setIsLocked(!isLocked);

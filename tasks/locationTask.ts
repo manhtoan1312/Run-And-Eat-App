@@ -37,7 +37,7 @@ TaskManager.defineTask(LOCATION_TRACKING_TASK, async ({ data, error }) => {
 
     if (status !== 'IN_PROGRESS' || !sessionId) {
       if (status === 'PAUSED' || status === 'COMPLETED' || status === 'CANCELLED') {
-        await Location.stopLocationUpdatesAsync(LOCATION_TRACKING_TASK);
+        try { await Location.stopLocationUpdatesAsync(LOCATION_TRACKING_TASK); } catch (e) {}
       }
       return;
     }
@@ -73,7 +73,7 @@ TaskManager.defineTask(LOCATION_TRACKING_TASK, async ({ data, error }) => {
                  accumulatedSeconds: accumulatedSeconds + finalElapsed,
                  segmentStartTime: null,
                });
-               await Location.stopLocationUpdatesAsync(LOCATION_TRACKING_TASK);
+               try { await Location.stopLocationUpdatesAsync(LOCATION_TRACKING_TASK); } catch (e) {}
              } catch (e) {
                console.error('[BackgroundLocationTask] Pause failed:', e);
              }

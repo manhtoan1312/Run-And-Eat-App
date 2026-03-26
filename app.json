@@ -17,11 +17,9 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Cho phép ứng dụng truy cập vị trí của bạn để theo dõi quãng đường chạy bộ.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Cho phép ứng dụng truy cập vị trí của bạn ngay cả khi chạy dưới nền để ghi lại hành trình chạy bộ đầy đủ.",
-        "NSLocationAlwaysUsageDescription": "Cho phép ứng dụng truy cập vị trí của bạn ngay cả khi chạy dưới nền để ghi lại hành trình chạy bộ đầy đủ.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Cho phép ứng dụng truy cập vị trí ngay cả khi chạy dưới nền để ghi lại hành trình chạy bộ đầy đủ.",
+        "NSLocationAlwaysUsageDescription": "Cho phép ứng dụng truy cập vị trí ngay cả khi chạy dưới nền để ghi lại hành trình chạy bộ đầy đủ.",
         "UIBackgroundModes": [
-          "location",
-          "fetch",
           "location",
           "fetch"
         ],
@@ -41,24 +39,42 @@
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
-        "WAKE_LOCK",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "WAKE_LOCK"
       ],
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.runandeat.client"
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-location",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Cho phép ứng dụng truy cập vị trí ngay cả khi chạy dưới nền để ghi lại hành trình chạy bộ đầy đủ.",
+          "locationAlwaysPermission": "Cho phép ứng dụng truy cập vị trí ngay cả khi chạy dưới nền để ghi lại hành trình chạy bộ đầy đủ.",
+          "locationWhenInUsePermission": "Cho phép ứng dụng truy cập vị trí của bạn để theo dõi quãng đường chạy bộ.",
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.1.0",
+            "javaVersion": 21
+          }
+        }
+      ],
       "expo-task-manager",
       "expo-notifications",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
@@ -69,6 +85,12 @@
         "projectId": "7d8dc042-4eb9-48a2-a9e8-0dbc53a1b7fd"
       }
     },
-    "owner": "manhtoan1312"
+    "owner": "manhtoan1312",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7d8dc042-4eb9-48a2-a9e8-0dbc53a1b7fd"
+    }
   }
 }

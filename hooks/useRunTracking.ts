@@ -51,33 +51,46 @@ export const useRunTracking = () => {
   const syncTickCounter = useRef(0); // sync every N ticks
 
   const requestPermissions = async () => {
-    const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
-    if (fgStatus !== 'granted') return false;
-    const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
-    return bgStatus === 'granted';
+    try {
+      const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
+      if (fgStatus !== 'granted') return false;
+      const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
+      return bgStatus === 'granted';
+    } catch (err) {
+      console.warn('[useRunTracking] Permission request failed (Expo Go limitation):', err);
+      return false;
+    }
   };
 
   const startTracking = useCallback(async () => {
-    const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TRACKING_TASK);
-    if (hasStarted) return;
-    await Location.startLocationUpdatesAsync(LOCATION_TRACKING_TASK, {
-      accuracy: Location.Accuracy.High,
-      distanceInterval: 5,
-      timeInterval: 5000,
-      deferredUpdatesInterval: 10000,
-      foregroundService: {
-        notificationTitle: 'Run & Eat đang theo dõi',
-        notificationBody: 'Chuyến chạy của bạn đang được ghi lại.',
-        notificationColor: '#FF6F61',
-      },
-      pausesUpdatesAutomatically: true,
-    });
+    try {
+      const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TRACKING_TASK);
+      if (hasStarted) return;
+      await Location.startLocationUpdatesAsync(LOCATION_TRACKING_TASK, {
+        accuracy: Location.Accuracy.High,
+        distanceInterval: 5,
+        timeInterval: 5000,
+        deferredUpdatesInterval: 10000,
+        foregroundService: {
+          notificationTitle: 'Run & Eat đang theo dõi',
+          notificationBody: 'Chuyến chạy của bạn đang được ghi lại.',
+          notificationColor: '#FF6F61',
+        },
+        pausesUpdatesAutomatically: true,
+      });
+    } catch (err) {
+      console.warn('[useRunTracking] startTracking failed (Expo Go limitation):', err);
+    }
   }, []);
 
   const stopTracking = useCallback(async () => {
-    const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TRACKING_TASK);
-    if (hasStarted) {
-      await Location.stopLocationUpdatesAsync(LOCATION_TRACKING_TASK);
+    try {
+      const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TRACKING_TASK);
+      if (hasStarted) {
+        await Location.stopLocationUpdatesAsync(LOCATION_TRACKING_TASK);
+      }
+    } catch (err) {
+      console.warn('[useRunTracking] stopTracking failed:', err);
     }
     if (timerRef.current) {
       clearInterval(timerRef.current);

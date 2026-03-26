@@ -24,8 +24,15 @@ export default function RunMap({ points, isLive = true, style }: RunMapProps) {
 
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      setHasPermission(status === 'granted');
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        setHasPermission(status === 'granted');
+      } catch (err) {
+        console.warn('[RunMap] Location permission request failed (Expo Go limitation):', err);
+        // In Expo Go on iOS, this can fail due to Info.plist not being injected.
+        // Treat as "no permission" so the map still renders without crashing.
+        setHasPermission(false);
+      }
     })();
   }, []);
 
@@ -85,7 +92,7 @@ export default function RunMap({ points, isLive = true, style }: RunMapProps) {
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         } : DEFAULT_REGION}
-        showsUserLocation={isLive}
+        showsUserLocation={false}
         showsMyLocationButton={false}
         showsCompass={false}
       >

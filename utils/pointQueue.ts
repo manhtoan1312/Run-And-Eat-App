@@ -184,7 +184,7 @@ export async function isNetworkAvailable(): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
-    await fetch('https://clients3.google.com/generate_204', {
+    await fetch('https://www.bing.com', {
       method: 'HEAD',
       signal: controller.signal,
     });
